@@ -1,0 +1,21 @@
+rtmp:
+  port: 1935
+
+hls:
+  enable: true
+  port: 3000
+  ts_duration: 5 #5s 一个ts
+  data_path: data #ts存放目录
+
+http_flv:
+  enable: true
+  port: 3006
+
+flv:
+  enable: false
+  data_path: data/flv #flv存放目录
+
+full_gop: true
+auth_enable: false
+log_level: info
+redis: redis://127.0.0.1/

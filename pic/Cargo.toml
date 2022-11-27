@@ -1,0 +1,22 @@
+[package]
+name = "pic"
+version = "0.1.0"
+authors = ["wida <wida@foxmail.com>"]
+build = "build.rs"
+links = "pic"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+cc = "1.0"
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 2
+
+[profile.dev]
+opt-level = 3
+debug = true
+codegen-units = 2
