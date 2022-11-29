@@ -55,10 +55,10 @@ jobs:
           cd archive
           if [ "${{ matrix.build }}" = "windows" ]; then
             cp "../target/${{ matrix.target }}/release/xlive.exe" ./
-            7z a "${{ matrix.archive-name }}" LICENSE README.md xlive.exe
+            7z a "${{ matrix.archive-name }}" LICENSE README.md conf.yaml xlive.exe
           else
             cp "../target/${{ matrix.target }}/release/xlive" ./
-            tar -czf "${{ matrix.archive-name }}" LICENSE README.md xlive
+            tar -czf "${{ matrix.archive-name }}" LICENSE README.md conf.yaml xlive
           fi
       - name: Upload archive
         uses: actions/upload-artifact@v1
