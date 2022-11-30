@@ -2,8 +2,8 @@ use std::env;
 
 fn main() {
     let mut build = cc::Build::new();
-    build.include("/usr/local/ffmpeg/include");
-    println!("cargo:rustc-link-search=native=/usr/local/ffmpeg/lib/");
+    //build.include("/usr/local/ffmpeg/include");
+   // println!("cargo:rustc-link-search=native=/usr/local/ffmpeg/lib/");
     println!("cargo:rustc-link-lib=dylib=avcodec");
     println!("cargo:rustc-link-lib=dylib=avutil");
     println!("cargo:rustc-link-lib=dylib=avformat");
