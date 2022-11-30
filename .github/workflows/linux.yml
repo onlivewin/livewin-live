@@ -10,7 +10,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
     - name: apt-get
-      run: sudo apt-get update && sudo apt-get install -y libavcodec-dev libavutil-dev libswscale-dev libresample-dev
+      run: sudo apt-get update && sudo apt-get install -y  musl-tools libavcodec-dev libavutil-dev libswscale-dev libresample-dev
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
