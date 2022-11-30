@@ -19,7 +19,7 @@ jobs:
         override: true
         target: x86_64-unknown-linux-musl
     - name: Build binary
-      run: cargo build --verbose --release --target x86_64-unknown-linux-musl
+      run: cargo build --verbose --features "keyframe_image" --release --target x86_64-unknown-linux-musl
       env:
         RUST_BACKTRACE: 1
     - name: Strip binary (linux and macos)

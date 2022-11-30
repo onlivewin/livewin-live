@@ -37,7 +37,7 @@ default = ["http-flv","hls","flv"]
 auth=[] #开启用户认证，使用redis
 flv=[] # 本地保存flv文件
 http-flv=["hyper"]
-keyframe_image=[] # 关键帧截屏
+keyframe_image=["pic"] # 关键帧截屏
 hls=["mpeg2ts","lazy_static"]
 
 [[bin]]
