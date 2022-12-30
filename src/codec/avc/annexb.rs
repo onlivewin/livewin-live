@@ -76,7 +76,6 @@ impl ReadFormat<Avc> for AnnexB {
             Ok(e) => e,
             Err(_e) => {
                 let nal_unit = nal::Unit::try_from(&nals[0..])?;
-                println!("nal kind -----{:?}", nal_unit.kind);
                 match nal_unit.kind {
                     nal::UnitType::SequenceParameterSet => {
                         ctx.sps = vec![nal_unit];
@@ -99,7 +98,6 @@ impl ReadFormat<Avc> for AnnexB {
                 Err(_e) => {
                     if start < nals.len() {
                         let nal_unit = nal::Unit::try_from(&nals[start..])?;
-                        println!("nal kind -----{:?}", nal_unit.kind);
                         match nal_unit.kind {
                             nal::UnitType::SequenceParameterSet => {
                                 ctx.sps = vec![nal_unit];
@@ -121,7 +119,6 @@ impl ReadFormat<Avc> for AnnexB {
 
             if start < pos {
                 let nal_unit = nal::Unit::try_from(&nals[start..pos])?;
-                println!("nal kind -----{:?}", nal_unit.kind);
                 match nal_unit.kind {
                     nal::UnitType::SequenceParameterSet => {
                         ctx.sps = vec![nal_unit];
