@@ -1,6 +1,7 @@
 use crate::error::Error as PError;
 use crate::packet::{Packet, PacketType};
 use crate::transport::{ChannelMessage, ManagerHandle};
+use crate::config::get_setting;
 use crate::Message;
 use crate::{put_i24_be, put_i32_be, FLV_HEADER};
 use bytes::{Bytes, BytesMut};
@@ -25,13 +26,19 @@ async fn http_flv(
         })
         .unwrap_or_else(HashMap::new);
 
-    if let Some(token) = params.get("token") {
-        //check token
-    } else {
-        return Ok(Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body(Body::empty())
-            .unwrap());
+    // 检查是否启用了认证
+    let settings = get_setting();
+    if settings.auth_enable {
+        if let Some(_token) = params.get("token") {
+            //TODO: 实际的token验证逻辑
+            log::debug!("Token authentication enabled but not implemented yet");
+        } else {
+            log::warn!("Authentication required but no token provided");
+            return Ok(Response::builder()
+                .status(StatusCode::FORBIDDEN)
+                .body(Body::from("Authentication required"))
+                .unwrap());
+        }
     }
 
     let path = req.uri().path();

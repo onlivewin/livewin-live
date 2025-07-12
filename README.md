@@ -61,18 +61,18 @@ ffmpeg -re -stream_loop -1 -i ~/Videos/dde-introduction.mp4 -c copy -f flv rtmp:
 
 可以使用vlc观看流视频
 ```
-rtmp://localhost:1935/{appname}
+rtmp://localhost:1935/{appname}/{key}
 ```
 - http-flv拉流
 
 可以用vlc和web_player(基于flv.js)观看
 ```
-http://localhost:3006/{appname}.flv
+http://localhost:3006/{appname}/{key}.flv
 ```
 
 - hls拉流
 
 可以用vlc和web_player(基于flv.js)观看
 ```
-http://localhost:3000/{appname}.m3u8
+http://localhost:3000/{appname}/{key}.m3u8
 ```

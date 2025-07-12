@@ -4,7 +4,7 @@ use crate::transport::{
 };
 use crate::user::UserCheck;
 use crate::{AppName, Event};
-use anyhow::{bail, Result};
+use crate::errors::{Result, StreamingError};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, RwLock};
 
@@ -74,19 +74,25 @@ where
                 });
 
                 if let Err(_) = responder.send(handle) {
-                    bail!("Failed to send response");
+                    return Err(StreamingError::InternalError {
+                        message: "Failed to send create channel response".to_string(),
+                    });
                 }
             }
             ChannelMessage::Join((name, responder)) => {
                 let sessions = self.channels.read().await;
                 if let Some((handle, watcher)) = sessions.get(&name) {
                     if let Err(_) = responder.send((handle.clone(), watcher.subscribe())) {
-                        bail!("Failed to send response");
+                        return Err(StreamingError::InternalError {
+                            message: "Failed to send join channel response".to_string(),
+                        });
                     }
                 } else {
-                    log::warn!("Channel not found: {}", name);
-                    // Send an error response instead of ignoring
-                    drop(responder);
+                    log::warn!("Attempted to join non-existent channel: {}", name);
+                    // For non-existent channels, we should return an error rather than a dummy handle
+                    return Err(StreamingError::StreamNotFound {
+                        stream_name: name.clone(),
+                    });
                 }
             }
             ChannelMessage::Release(name) => {
@@ -114,14 +120,18 @@ where
     async fn auth(&self, name: &str, key: &str) -> Result<()> {
         if let Some(checker) = &self.user_checker {
             if key.is_empty() {
-                bail!("Stream key can not be empty");
+                return Err(StreamingError::InvalidRequest {
+                    message: "Stream key cannot be empty".to_string(),
+                });
             }
             if let Ok(Some(k)) = checker.get_key(name).await {
                 if k == key {
                     return Ok(());
                 }
             }
-            bail!("Stream key {} not permitted for {}", key, name);
+            return Err(StreamingError::AuthenticationFailed {
+                stream_name: name.to_string(),
+            });
         }
         Ok(())
     }

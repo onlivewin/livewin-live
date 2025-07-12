@@ -40,6 +40,7 @@ pub type Watcher = broadcast::Receiver<Packet>;
 
 pub enum TsMessageQueue {
     Ts(AppName, i64, u8),
+    Close(AppName),
 }
 
 pub type TsMessageQueueHandle = mpsc::UnboundedSender<TsMessageQueue>;

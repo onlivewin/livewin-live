@@ -1,12 +1,17 @@
+pub mod auth;
 mod connection;
 mod packet;
+pub mod rate_limiter;
 mod rtmp;
 pub mod service;
 
 mod channel;
 pub mod config;
 mod error;
+pub mod errors;
+pub mod health;
 mod manager;
+pub mod metrics;
 pub mod transport;
 pub mod user;
 
@@ -18,6 +23,8 @@ pub mod http_flv;
 
 #[cfg(feature = "hls")]
 pub mod hls;
+#[cfg(feature = "hls")]
+pub mod hls_manager;
 #[cfg(feature = "hls")]
 mod transport_stream;
 #[cfg(feature = "hls")]

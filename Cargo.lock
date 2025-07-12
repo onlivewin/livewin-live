@@ -2182,6 +2182,7 @@ dependencies = [
  "redis",
  "rml_rtmp",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio 1.19.2",
  "tokio-stream",
