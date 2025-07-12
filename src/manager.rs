@@ -83,6 +83,10 @@ where
                     if let Err(_) = responder.send((handle.clone(), watcher.subscribe())) {
                         bail!("Failed to send response");
                     }
+                } else {
+                    log::warn!("Channel not found: {}", name);
+                    // Send an error response instead of ignoring
+                    drop(responder);
                 }
             }
             ChannelMessage::Release(name) => {

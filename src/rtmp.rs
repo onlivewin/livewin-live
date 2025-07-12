@@ -211,12 +211,13 @@ impl Protocol {
                 stream_id,
                 ..
             } => {
+                let full_app_name = format!("{}/{}", app_name, stream_key);
                 self.emit(Event::JoinChannel {
-                    app_name: app_name.clone(),
+                    app_name: full_app_name.clone(),
                     stream_key,
                 });
                 self.accept_request(request_id)?;
-                self.emit(Event::SendInitData { app_name });
+                self.emit(Event::SendInitData { app_name: full_app_name });
                 self.state = State::Playing { stream_id };
             }
             PlayStreamFinished { .. } => {

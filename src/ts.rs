@@ -40,9 +40,11 @@ impl Writer {
         mq_message_handle: TsMessageQueueHandle,
         ts_duration: u64,
     ) -> Result<Self> {
+        log::info!("Creating TS writer: app_name={}, stream_path={}", app_name, stream_path);
         let mut next_write: u64 = Utc::now().timestamp() as u64 + ts_duration; // milliseconds
         next_write = next_write - next_write % ts_duration;
         let stream_path = PathBuf::from(stream_path).join(app_name.clone());
+        log::info!("Final stream_path: {}", stream_path.display());
         super::prepare_stream_directory(&stream_path)?;
 
         Ok(Self {
@@ -110,14 +112,21 @@ impl Writer {
         let keyframe_duration = timestamp - self.last_keyframe;
         if keyframe {
             if Utc::now().timestamp() >= self.next_write as i64 {
-                let len = (keyframe_duration as f64 / 1000.0) as i64;
+                // Ensure minimum duration of 1 second for TS segments
+                let len = if self.last_keyframe == 0 || keyframe_duration < 1000 {
+                    self.ts_duration as i64
+                } else {
+                    (keyframe_duration as f64 / 1000.0) as i64
+                };
                 let filename = format!("{}.ts", self.next_write - self.ts_duration);
                 let path = self.stream_path.join(&filename);
                 self.buffer.write_to_file(&path)?;
+                let ts_filename = (self.next_write - self.ts_duration) as i64;
+                log::info!("Sending TS message: app_name={}, filename={}, duration={}", self.app_name, ts_filename, len);
                 self.mq_message_handle
                     .send(TsMessageQueue::Ts(
                         self.app_name.clone(),
-                        (self.next_write - self.ts_duration) as i64,
+                        ts_filename,
                         len as u8,
                     ))
                     .map_err(|_| Error::SendTsToMqErr)?;

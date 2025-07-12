@@ -3,7 +3,7 @@ rtmp:
 
 hls:
   enable: true
-  port: 3000
+  port: 3001
   ts_duration: 5 #5s 一个ts
   data_path: data #ts存放目录
 
@@ -12,7 +12,7 @@ http_flv:
   port: 3006
 
 flv:
-  enable: false
+  enable: true
   data_path: data/flv #flv存放目录
 
 full_gop: true
