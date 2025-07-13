@@ -51,8 +51,12 @@ impl Service {
 
         while let Some((app_name, watcher)) = trigger_handle.recv().await {
             let local: DateTime<Local> = Local::now();
+           
+            let stream_path = PathBuf::from(self.flv_data_path.clone());
+            let stream_path = stream_path.join(app_name.clone());
+            super::prepare_stream_directory(&stream_path)?;
             let flv_path = format!(
-                "{}/{}_{}.flv",
+                "{}/{}/{}.flv",
                 self.flv_data_path,
                 app_name,
                 local.timestamp()
