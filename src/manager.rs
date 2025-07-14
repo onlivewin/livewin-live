@@ -41,6 +41,8 @@ where
         }
     }
 
+
+
     pub fn handle(&self) -> ManagerHandle {
         self.handle.clone()
     }
@@ -66,11 +68,8 @@ where
                 }
 
                 let full_gop = self.full_gop;
-                let name_copy = name.clone();
                 tokio::spawn(async move {
-                    Channel::new(name_copy, incoming, outgoing, full_gop)
-                        .run()
-                        .await;
+                    Channel::new(name, incoming, outgoing, full_gop).run().await;
                 });
 
                 if let Err(_) = responder.send(handle) {

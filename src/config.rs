@@ -54,6 +54,12 @@ impl ConfigManager {
             .set_default("hls.port", 3001)?
             .set_default("hls.ts_duration", 5)?
             .set_default("hls.data_path", "data")?
+            // HLS清理配置默认值
+            .set_default("hls.cleanup.max_files_per_stream", 10)?
+            .set_default("hls.cleanup.min_file_age_seconds", 30)?
+            .set_default("hls.cleanup.cleanup_delay_seconds", 5)?
+            .set_default("hls.cleanup.enable_size_based_cleanup", true)?
+            .set_default("hls.cleanup.max_total_size_mb", 1000)?
             .set_default("http_flv.enable", true)?
             .set_default("http_flv.port", 3002)?
             .set_default("flv.enable", false)?
@@ -149,12 +155,29 @@ impl Default for Flv {
     }
 }
 
+
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Hls {
     pub enable: bool,
     pub port: i32,
     pub ts_duration: u64,
     pub data_path: String,
+    pub cleanup: HlsCleanupConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct HlsCleanupConfig {
+    /// 每个流最多保留的TS文件数量
+    pub max_files_per_stream: usize,
+    /// 文件最小存在时间（秒）
+    pub min_file_age_seconds: u64,
+    /// 清理延迟时间（秒）
+    pub cleanup_delay_seconds: u64,
+    /// 是否启用基于大小的清理
+    pub enable_size_based_cleanup: bool,
+    /// 每个流最大总大小（MB）
+    pub max_total_size_mb: u64,
 }
 
 impl Default for Hls {
@@ -164,6 +187,19 @@ impl Default for Hls {
             port: 3001,
             ts_duration: 5,
             data_path: "data".to_string(),
+            cleanup: HlsCleanupConfig::default(),
+        }
+    }
+}
+
+impl Default for HlsCleanupConfig {
+    fn default() -> Self {
+        Self {
+            max_files_per_stream: 10,
+            min_file_age_seconds: 30,
+            cleanup_delay_seconds: 5,
+            enable_size_based_cleanup: true,
+            max_total_size_mb: 1000,
         }
     }
 }

@@ -15,7 +15,7 @@ use {
     tokio_util::codec::{BytesCodec, FramedRead},
 };
 
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration, time::SystemTime};
 
 static NOTFOUND: &[u8] = b"Not Found";
 
@@ -320,6 +320,140 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
     Ok(response)
 }
 
+/// 使用配置文件的TS文件清理逻辑
+async fn cleanup_ts_files_with_config(app_name: &str) {
+    use crate::config::get_setting;
+
+    let settings = get_setting();
+    let cleanup_config = &settings.hls.cleanup;
+
+    log::debug!("Starting TS cleanup for stream: {} with config: max_files={}, min_age={}s, delay={}s",
+        app_name, cleanup_config.max_files_per_stream, cleanup_config.min_file_age_seconds, cleanup_config.cleanup_delay_seconds);
+
+    // 延迟清理，给正在播放的客户端一些缓冲时间
+    tokio::time::sleep(Duration::from_secs(cleanup_config.cleanup_delay_seconds)).await;
+
+    let stream_dir = PathBuf::from(format!("data/{}", app_name));
+
+    if !stream_dir.exists() {
+        log::debug!("Stream directory does not exist: {:?}", stream_dir);
+        return;
+    }
+
+    log::debug!("Checking TS files in directory: {:?}", stream_dir);
+
+    match fs::read_dir(&stream_dir) {
+        Ok(entries) => {
+            let mut ts_files = Vec::new();
+
+            // 收集所有TS文件信息
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if let Some(extension) = path.extension() {
+                        if extension == "ts" {
+                            if let Ok(metadata) = entry.metadata() {
+                                if let Ok(modified) = metadata.modified() {
+                                    ts_files.push((path, modified));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 按修改时间排序（最新的在前）
+            ts_files.sort_by(|a, b| b.1.cmp(&a.1));
+
+            log::debug!("Found {} TS files in directory", ts_files.len());
+
+            let now = SystemTime::now();
+            let mut deleted_count = 0;
+            let mut total_size = 0u64;
+
+            // 计算总大小（如果启用基于大小的清理）
+            if cleanup_config.enable_size_based_cleanup {
+                for (file_path, _) in &ts_files {
+                    if let Ok(metadata) = fs::metadata(file_path) {
+                        total_size += metadata.len();
+                    }
+                }
+                log::debug!("Total size of TS files: {:.2} MB", total_size as f64 / (1024.0 * 1024.0));
+            }
+
+            let max_size_bytes = cleanup_config.max_total_size_mb * 1024 * 1024;
+            let size_exceeded = cleanup_config.enable_size_based_cleanup && total_size > max_size_bytes;
+
+            if size_exceeded {
+                log::debug!("Size limit exceeded: {:.2} MB > {:.2} MB",
+                    total_size as f64 / (1024.0 * 1024.0),
+                    cleanup_config.max_total_size_mb as f64);
+            }
+
+            // 删除策略：
+            // 1. 保留最新的max_files_per_stream个文件
+            // 2. 删除超过min_file_age_seconds秒的旧文件
+            // 3. 如果启用大小限制且超过限制，删除更多文件
+            for (i, (file_path, modified_time)) in ts_files.iter().enumerate() {
+                let file_age = if let Ok(age) = now.duration_since(*modified_time) {
+                    age.as_secs()
+                } else {
+                    0
+                };
+
+                let should_delete = if i >= cleanup_config.max_files_per_stream {
+                    // 超过文件数量限制
+                    log::debug!("File {} should be deleted: exceeds max files limit (index {} >= {})",
+                        file_path.display(), i, cleanup_config.max_files_per_stream);
+                    true
+                } else if size_exceeded && i >= cleanup_config.max_files_per_stream / 2 {
+                    // 大小超限且超过一半文件数量
+                    log::debug!("File {} should be deleted: size exceeded and index {} >= {}",
+                        file_path.display(), i, cleanup_config.max_files_per_stream / 2);
+                    true
+                } else if file_age > cleanup_config.min_file_age_seconds {
+                    // 检查文件年龄（简化条件）
+                    log::debug!("File {} should be deleted: age {}s > {}s",
+                        file_path.display(), file_age, cleanup_config.min_file_age_seconds);
+                    true
+                } else {
+                    log::debug!("File {} kept: index={}, age={}s, size_exceeded={}",
+                        file_path.display(), i, file_age, size_exceeded);
+                    false
+                };
+
+                if should_delete {
+                    // 获取文件大小（在删除前）
+                    let file_size = if let Ok(metadata) = fs::metadata(file_path) {
+                        metadata.len()
+                    } else {
+                        0
+                    };
+
+                    match fs::remove_file(file_path) {
+                        Ok(_) => {
+                            deleted_count += 1;
+                            total_size = total_size.saturating_sub(file_size);
+                            log::debug!("Cleaned up old TS file: {:?} (size: {} bytes)", file_path, file_size);
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to remove TS file {:?}: {}", file_path, e);
+                        }
+                    }
+                }
+            }
+
+            if deleted_count > 0 {
+                log::info!("Cleaned up {} old TS files for stream: {} (total size: {:.2} MB)",
+                    deleted_count, app_name, total_size as f64 / (1024.0 * 1024.0));
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to read stream directory {:?}: {}", stream_dir, e);
+        }
+    }
+}
+
 pub async fn run(mut recv: TsMessageReceiver, port: u32) -> Result<()> {
     let listen_address = format!("[::]:{}", port);
     let sock_addr = listen_address.parse().map_err(|e| {
@@ -349,23 +483,10 @@ pub async fn run(mut recv: TsMessageReceiver, port: u32) -> Result<()> {
                         metrics.increment_errors();
                     }
 
-                    // Clean up old TS files
-                    let stream_path = PathBuf::from(format!(
-                        "data/{}/{}/{}.ts",
-                        app_name,
-                        app_name,
-                        file_name
-                    ));
-
-                    // Remove old files (keep only recent ones)
-                    // This is a simple cleanup - in production you might want more sophisticated logic
+                    // 改进的TS文件清理逻辑
+                    let app_name_for_cleanup = app_name.clone();
                     tokio::spawn(async move {
-                        tokio::time::sleep(Duration::from_secs(60)).await; // Wait before cleanup
-                        if stream_path.exists() {
-                            if let Err(e) = fs::remove_file(&stream_path) {
-                                log::warn!("Failed to remove old TS file {:?}: {}", stream_path, e);
-                            }
-                        }
+                        cleanup_ts_files_with_config(&app_name_for_cleanup).await;
                     });
                 }
                 TsMessageQueue::Close(app_name) => {

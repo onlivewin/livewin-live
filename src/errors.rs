@@ -31,7 +31,13 @@ pub enum StreamingError {
     
     #[error("Codec error: {message}")]
     CodecError { message: String },
-    
+
+    #[error("GOP processing error: {message}")]
+    GopError { message: String },
+
+    #[error("Video encoding error: {message}")]
+    VideoEncodingError { message: String },
+
     #[error("Rate limit exceeded for {identifier}")]
     RateLimitExceeded { identifier: String },
     
@@ -75,6 +81,8 @@ impl StreamingError {
             StreamingError::ConfigError { .. } => "CONFIG_ERROR",
             StreamingError::NetworkError { .. } => "NETWORK_ERROR",
             StreamingError::CodecError { .. } => "CODEC_ERROR",
+            StreamingError::GopError { .. } => "GOP_ERROR",
+            StreamingError::VideoEncodingError { .. } => "VIDEO_ENCODING_ERROR",
             StreamingError::RateLimitExceeded { .. } => "RATE_LIMIT_EXCEEDED",
             StreamingError::ResourceExhausted { .. } => "RESOURCE_EXHAUSTED",
             StreamingError::InvalidRequest { .. } => "INVALID_REQUEST",
@@ -93,6 +101,8 @@ impl StreamingError {
             StreamingError::ConfigError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             StreamingError::NetworkError { .. } => StatusCode::BAD_GATEWAY,
             StreamingError::CodecError { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+            StreamingError::GopError { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+            StreamingError::VideoEncodingError { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             StreamingError::RateLimitExceeded { .. } => StatusCode::TOO_MANY_REQUESTS,
             StreamingError::ResourceExhausted { .. } => StatusCode::SERVICE_UNAVAILABLE,
             StreamingError::InvalidRequest { .. } => StatusCode::BAD_REQUEST,

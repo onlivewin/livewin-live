@@ -6,9 +6,15 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Timestamp {
     value: u64,
+}
+
+impl Default for Timestamp {
+    fn default() -> Self {
+        Self { value: 0 }
+    }
 }
 
 impl From<u32> for Timestamp {
@@ -35,14 +41,14 @@ impl From<Timestamp> for u64 {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum PacketType {
     Meta,
     Video,
     Audio,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Packet {
     pub kind: PacketType,
     pub timestamp: Option<Timestamp>,

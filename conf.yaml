@@ -4,8 +4,15 @@ rtmp:
 hls:
   enable: true
   port: 3001
-  ts_duration: 5 #5s 一个ts
+  ts_duration: 1 #1s 一个ts (与GOP间隔一致)
   data_path: data #ts存放目录
+  # TS文件清理配置
+  cleanup:
+    max_files_per_stream: 10    # 每个流最多保留的TS文件数量
+    min_file_age_seconds: 30    # 文件最小存在时间（秒）
+    cleanup_delay_seconds: 5    # 清理延迟时间（秒）
+    enable_size_based_cleanup: true  # 是否启用基于大小的清理
+    max_total_size_mb: 1000     # 每个流最大总大小（MB）
 
 http_flv:
   enable: true
@@ -14,6 +21,8 @@ http_flv:
 flv:
   enable: true
   data_path: data/flv #flv存放目录
+
+# TS文件生成策略：依赖原始流的关键帧进行切分
 
 full_gop: true
 auth_enable: false

@@ -41,8 +41,7 @@ impl Writer {
         ts_duration: u64,
     ) -> Result<Self> {
         log::info!("Creating TS writer: app_name={}, stream_path={}", app_name, stream_path);
-        let mut next_write: u64 = Utc::now().timestamp() as u64 + ts_duration; // milliseconds
-        next_write = next_write - next_write % ts_duration;
+        let next_write: u64 = Utc::now().timestamp() as u64 + ts_duration; // seconds
         let stream_path = PathBuf::from(stream_path).join(app_name.clone());
         log::info!("Final stream_path: {}", stream_path.display());
         super::prepare_stream_directory(&stream_path)?;
@@ -109,28 +108,27 @@ impl Writer {
         let keyframe = flv_packet.is_keyframe();
 
         //  println!("{} keyframe {}",timestamp,flv_packet.is_keyframe());
-        let keyframe_duration = timestamp - self.last_keyframe;
+        let _keyframe_duration = timestamp - self.last_keyframe;
         if keyframe {
-            if Utc::now().timestamp() >= self.next_write as i64 {
-                // Ensure minimum duration of 1 second for TS segments
-                let len = if self.last_keyframe == 0 || keyframe_duration < 1000 {
-                    self.ts_duration as i64
-                } else {
-                    (keyframe_duration as f64 / 1000.0) as i64
-                };
-                let filename = format!("{}.ts", self.next_write - self.ts_duration);
+            let current_time = Utc::now().timestamp() as u64;
+            if current_time >= self.next_write {
+                let ts_filename = (self.next_write - self.ts_duration) as i64;
+                let filename = format!("{}.ts", ts_filename);
                 let path = self.stream_path.join(&filename);
                 self.buffer.write_to_file(&path)?;
-                let ts_filename = (self.next_write - self.ts_duration) as i64;
-                log::info!("Sending TS message: app_name={}, filename={}, duration={}", self.app_name, ts_filename, len);
+
+                log::info!("Sending TS message: app_name={}, filename={}, duration={}",
+                    self.app_name, ts_filename, self.ts_duration);
+
                 self.mq_message_handle
                     .send(TsMessageQueue::Ts(
                         self.app_name.clone(),
                         ts_filename,
-                        len as u8,
+                        self.ts_duration as u8,
                     ))
                     .map_err(|_| Error::SendTsToMqErr)?;
-                self.next_write += self.ts_duration as u64; // 这边能调节ts大小
+
+                self.next_write = current_time + self.ts_duration;
                 self.last_keyframe = timestamp;
             }
             self.keyframe_counter += 1;
