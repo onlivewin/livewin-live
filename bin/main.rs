@@ -39,6 +39,13 @@ async fn main() -> Result<()> {
     let mut handles = Vec::new();
     let redis_client: Option<Redis> = Some(Redis::new(&config.redis)?);
 
+    // 初始化全局速率限制器
+    xlive::rate_limiter::init_global_rate_limiter(&config.rate_limit);
+    log::info!("Rate limiter initialized with config: connection={}/{}, hls_request={}/{}, stream_creation={}/{}",
+        config.rate_limit.connection.max_requests, config.rate_limit.connection.window_duration_secs,
+        config.rate_limit.hls_request.max_requests, config.rate_limit.hls_request.window_duration_secs,
+        config.rate_limit.stream_creation.max_requests, config.rate_limit.stream_creation.window_duration_secs);
+
     let manager = Manager::new(redis_client, config.full_gop, config.auth_enable);
     let manager_handle = manager.handle();
     handles.push(tokio::spawn(manager.run()));

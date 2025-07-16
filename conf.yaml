@@ -24,6 +24,29 @@ flv:
 
 # TS文件生成策略：依赖原始流的关键帧进行切分
 
+# 速率限制配置
+rate_limit:
+  # 连接速率限制
+  connection:
+    max_requests: 10          # 每个时间窗口最大请求数
+    window_duration_secs: 60  # 时间窗口长度（秒）
+    burst_allowance: 5        # 突发允许量
+
+  # HLS请求速率限制
+  hls_request:
+    max_requests: 100         # 每个时间窗口最大请求数
+    window_duration_secs: 60  # 时间窗口长度（秒）
+    burst_allowance: 20       # 突发允许量
+
+  # 流创建速率限制
+  stream_creation:
+    max_requests: 5           # 每个时间窗口最大请求数
+    window_duration_secs: 300 # 时间窗口长度（秒，5分钟）
+    burst_allowance: 2        # 突发允许量
+
+  # 全局清理配置
+  cleanup_interval_secs: 300  # 清理间隔（秒，5分钟）
+
 full_gop: true
 auth_enable: false
 log_level: info

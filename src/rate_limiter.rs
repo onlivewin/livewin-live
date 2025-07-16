@@ -84,11 +84,30 @@ impl RateLimiter {
     pub fn new() -> Self {
         let windows = Arc::new(RwLock::new(HashMap::new()));
         let cleanup_interval = Duration::from_secs(300); // 5分钟清理一次
-        
+
         let cleanup_task = Self::start_cleanup_task(windows.clone(), cleanup_interval);
-        
+
         Self {
             limits: HashMap::new(),
+            windows,
+            cleanup_interval,
+            cleanup_task: Some(cleanup_task),
+        }
+    }
+
+    pub fn new_with_config(rate_limit_settings: &crate::config::RateLimitSettings) -> Self {
+        let windows = Arc::new(RwLock::new(HashMap::new()));
+        let cleanup_interval = Duration::from_secs(rate_limit_settings.cleanup_interval_secs);
+
+        let cleanup_task = Self::start_cleanup_task(windows.clone(), cleanup_interval);
+
+        let mut limits = HashMap::new();
+        limits.insert("connection".to_string(), rate_limit_settings.connection.to_rate_limit_config());
+        limits.insert("hls_request".to_string(), rate_limit_settings.hls_request.to_rate_limit_config());
+        limits.insert("stream_creation".to_string(), rate_limit_settings.stream_creation.to_rate_limit_config());
+
+        Self {
+            limits,
             windows,
             cleanup_interval,
             cleanup_task: Some(cleanup_task),
@@ -270,8 +289,15 @@ static GLOBAL_RATE_LIMITER: OnceLock<Arc<RateLimiter>> = OnceLock::new();
 
 pub fn get_global_rate_limiter() -> Arc<RateLimiter> {
     GLOBAL_RATE_LIMITER.get_or_init(|| {
-        Arc::new(RateLimiter::default())
+        // 尝试从配置加载，如果失败则使用默认配置
+        let config = crate::config::get_setting();
+        Arc::new(RateLimiter::new_with_config(&config.rate_limit))
     }).clone()
+}
+
+/// 初始化全局速率限制器（用于在启动时设置配置）
+pub fn init_global_rate_limiter(rate_limit_settings: &crate::config::RateLimitSettings) {
+    let _ = GLOBAL_RATE_LIMITER.set(Arc::new(RateLimiter::new_with_config(rate_limit_settings)));
 }
 
 /// 便利宏用于检查速率限制

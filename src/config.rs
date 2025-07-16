@@ -1,6 +1,8 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::collections::HashMap;
 use crate::errors::{Result, StreamingError};
 
 pub struct ConfigManager {
@@ -67,7 +69,18 @@ impl ConfigManager {
             .set_default("redis", "redis://localhost:6379")?
             .set_default("auth_enable", false)?
             .set_default("log_level", "info")?
-            .set_default("full_gop", true)?;
+            .set_default("full_gop", true)?
+            // 速率限制配置默认值
+            .set_default("rate_limit.connection.max_requests", 10)?
+            .set_default("rate_limit.connection.window_duration_secs", 60)?
+            .set_default("rate_limit.connection.burst_allowance", 5)?
+            .set_default("rate_limit.hls_request.max_requests", 100)?
+            .set_default("rate_limit.hls_request.window_duration_secs", 60)?
+            .set_default("rate_limit.hls_request.burst_allowance", 20)?
+            .set_default("rate_limit.stream_creation.max_requests", 5)?
+            .set_default("rate_limit.stream_creation.window_duration_secs", 300)?
+            .set_default("rate_limit.stream_creation.burst_allowance", 2)?
+            .set_default("rate_limit.cleanup_interval_secs", 300)?;
 
         let config = config.build().map_err(|e| StreamingError::ConfigError {
             message: format!("Failed to build config: {}", e),
@@ -112,6 +125,7 @@ pub struct Settings {
     pub log_level: String,
     pub full_gop: bool,
     pub flv: Flv,
+    pub rate_limit: RateLimitSettings,
 }
 
 impl Default for Settings {
@@ -125,6 +139,7 @@ impl Default for Settings {
             log_level: "info".to_string(),
             full_gop: true,
             flv: Flv::default(),
+            rate_limit: RateLimitSettings::default(),
         }
     }
 }
@@ -215,6 +230,55 @@ impl Default for HTTPFLV {
         Self {
             enable: true,
             port: 3002,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RateLimitSettings {
+    pub connection: RateLimitTypeConfig,
+    pub hls_request: RateLimitTypeConfig,
+    pub stream_creation: RateLimitTypeConfig,
+    pub cleanup_interval_secs: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RateLimitTypeConfig {
+    pub max_requests: u32,
+    pub window_duration_secs: u64,
+    pub burst_allowance: u32,
+}
+
+impl Default for RateLimitSettings {
+    fn default() -> Self {
+        Self {
+            connection: RateLimitTypeConfig {
+                max_requests: 10,
+                window_duration_secs: 60,
+                burst_allowance: 5,
+            },
+            hls_request: RateLimitTypeConfig {
+                max_requests: 100,
+                window_duration_secs: 60,
+                burst_allowance: 20,
+            },
+            stream_creation: RateLimitTypeConfig {
+                max_requests: 5,
+                window_duration_secs: 300,
+                burst_allowance: 2,
+            },
+            cleanup_interval_secs: 300,
+        }
+    }
+}
+
+impl RateLimitTypeConfig {
+    /// 转换为RateLimitConfig
+    pub fn to_rate_limit_config(&self) -> crate::rate_limiter::RateLimitConfig {
+        crate::rate_limiter::RateLimitConfig {
+            max_requests: self.max_requests,
+            window_duration: Duration::from_secs(self.window_duration_secs),
+            burst_allowance: self.burst_allowance,
         }
     }
 }
